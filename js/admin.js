@@ -1,8 +1,54 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Views ---
+    const loginView = document.getElementById('admin-login-view');
+    const mainView = document.getElementById('admin-main-view');
+
+    // --- Login Logic ---
+    const passwordInput = document.getElementById('admin-password-input');
+    const loginButton = document.getElementById('admin-login-button');
+    const loginMessage = document.getElementById('admin-login-message');
+    const defaultPassword = '12345678';
+
+    loginButton.addEventListener('click', () => {
+        const password = passwordInput.value;
+        chrome.storage.local.get(['adminPassword'], (result) => {
+            const correctPassword = result.adminPassword || defaultPassword;
+            if (password === correctPassword) {
+                chrome.storage.session.set({ isAdminLoggedIn: true }, () => {
+                    showMainView();
+                });
+            } else {
+                loginMessage.textContent = 'Incorrect password.';
+            }
+        });
+    });
+
+    // --- View Switching ---
+    const showMainView = () => {
+        loginView.style.display = 'none';
+        mainView.style.display = 'block';
+        renderWebsiteList();
+        renderDeviceList();
+        loadRemoteSyncSettings();
+    };
+
+    const showLoginView = () => {
+        loginView.style.display = 'block';
+        mainView.style.display = 'none';
+    };
+
+    // --- Initial Check ---
+    chrome.storage.session.get(['isAdminLoggedIn'], (result) => {
+        if (result.isAdminLoggedIn) {
+            showMainView();
+        } else {
+            showLoginView();
+        }
+    });
+
     // --- Tab Switching Logic ---
     const tabLinks = document.querySelectorAll('.tab-link');
     const tabContents = document.querySelectorAll('.tab-content');
-
     tabLinks.forEach(link => {
         link.addEventListener('click', () => {
             const tab = link.dataset.tab;
@@ -34,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="slider"></span>
                     </label>
                     <button class="control-btn edit-btn" data-url="${site.url}" title="Edit/Import Cookies">✏️</button>
-                    <button class="control-btn export-btn" data-url="${site.url}" title="Export Cookies">📋</button>
+                    <button class="control-btn push-btn" data-url="${site.url}" title="Push Cookies to Master">⬆️</button>
                     <button class="control-btn delete-btn" data-url="${site.url}" title="Delete Site">🗑️</button>
                 `;
                 li.appendChild(siteName);
@@ -44,7 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- Event Listeners for Tab 1 ---
     addCurrentTabButton.addEventListener('click', () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].url) {
@@ -74,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (button) {
             const url = button.dataset.url;
             if (!url) return;
-
             if (button.classList.contains('delete-btn')) {
                 if (confirm(`Are you sure you want to delete ${url}?`)) {
                     chrome.storage.local.get({ websites: [] }, (result) => {
@@ -82,15 +126,35 @@ document.addEventListener('DOMContentLoaded', () => {
                         chrome.storage.local.set({ websites }, renderWebsiteList);
                     });
                 }
-            } else if (button.classList.contains('export-btn')) {
-                const key = `master_cookies_${url}`;
-                chrome.storage.local.get(key, (result) => {
-                    if (result[key]) {
-                        navigator.clipboard.writeText(JSON.stringify(result[key], null, 2))
-                            .then(() => alert(`Cookies for ${url} copied to clipboard.`))
-                            .catch(() => alert('Failed to copy cookies.'));
+            } else if (button.classList.contains('push-btn')) {
+                chrome.cookies.getAll({ domain: url }, (cookies) => {
+                    if (cookies && cookies.length > 0) {
+                        const key = `master_cookies_${url}`;
+                        chrome.storage.local.set({ [key]: cookies }, () => {
+                            let message = `Pushed ${cookies.length} cookies for ${url} to local master.`;
+                            chrome.storage.local.get('remoteSyncSettings', (settingsResult) => {
+                                const settings = settingsResult.remoteSyncSettings;
+                                if (settings && settings.enabled && settings.url) {
+                                    fetch(settings.url, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ domain: url, cookies: cookies }),
+                                    })
+                                    .then(response => {
+                                        message += response.ok ? ' And pushed to remote.' : ' But failed to push to remote.';
+                                        alert(message);
+                                    })
+                                    .catch(err => {
+                                        message += ` But failed to push to remote: ${err}`;
+                                        alert(message);
+                                    });
+                                } else {
+                                    alert(message);
+                                }
+                            });
+                        });
                     } else {
-                        alert('No cookies found for this site.');
+                        alert(`No cookies found for domain ${url} to push.`);
                     }
                 });
             } else if (button.classList.contains('edit-btn')) {
@@ -143,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Cookie Parsing Logic (from popup.js) ---
     const parseCookieInput = (text) => {
         try {
             const parsed = JSON.parse(text);
@@ -165,6 +228,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Settings Logic (Tab 2) ---
     const changePasswordButton = document.getElementById('change-password-button');
+    const logoutButton = document.getElementById('logout-button');
+    const remoteSyncEnabledCheckbox = document.getElementById('remote-sync-enabled');
+    const remoteSyncUrlInput = document.getElementById('remote-sync-url');
+    const saveRemoteSyncButton = document.getElementById('save-remote-sync-button');
+    const remoteSyncMessage = document.getElementById('remote-sync-message');
+
+    const loadRemoteSyncSettings = () => {
+        chrome.storage.local.get('remoteSyncSettings', (result) => {
+            if (result.remoteSyncSettings) {
+                remoteSyncEnabledCheckbox.checked = result.remoteSyncSettings.enabled;
+                remoteSyncUrlInput.value = result.remoteSyncSettings.url;
+            }
+        });
+    };
+
+    const saveRemoteSyncSettings = () => {
+        const settings = {
+            enabled: remoteSyncEnabledCheckbox.checked,
+            url: remoteSyncUrlInput.value.trim()
+        };
+        if (settings.enabled && !settings.url) {
+            remoteSyncMessage.textContent = 'URL cannot be empty when enabled.';
+            return;
+        }
+        chrome.storage.local.set({ remoteSyncSettings: settings }, () => {
+            remoteSyncMessage.textContent = 'Sync settings saved!';
+            setTimeout(() => { remoteSyncMessage.textContent = ''; }, 3000);
+        });
+    };
+
+    saveRemoteSyncButton.addEventListener('click', saveRemoteSyncSettings);
+
     changePasswordButton.addEventListener('click', () => {
         const newPassword = document.getElementById('new-password').value;
         if (newPassword && newPassword.length >= 8) {
@@ -176,30 +271,21 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Password must be at least 8 characters long.');
         }
     });
+    logoutButton.addEventListener('click', () => {
+        chrome.storage.session.set({ isAdminLoggedIn: false }, () => {
+            showLoginView();
+        });
+    });
 
     // --- Devices Logic (Tab 3) ---
     const deviceList = document.getElementById('device-list');
-
     const renderDeviceList = () => {
-        // This is a placeholder. In a real P2P implementation, this data would come from the network.
-        const devices = [
-            { id: 'device-1', ip: '192.168.1.10', isBlocked: false },
-            { id: 'device-2', ip: '10.0.0.5', isBlocked: true },
-        ];
+        const devices = [ { id: 'device-1', ip: '192.168.1.10', isBlocked: false }, { id: 'device-2', ip: '10.0.0.5', isBlocked: true }, ];
         deviceList.innerHTML = '';
         devices.forEach(device => {
             const li = document.createElement('li');
-            li.innerHTML = `
-                <span>${device.ip} (ID: ${device.id})</span>
-                <button class="block-btn" data-id="${device.id}">
-                    ${device.isBlocked ? 'Unblock' : 'Block'}
-                </button>
-            `;
+            li.innerHTML = `<span>${device.ip} (ID: ${device.id})</span><button class="block-btn" data-id="${device.id}">${device.isBlocked ? 'Unblock' : 'Block'}</button>`;
             deviceList.appendChild(li);
         });
     };
-
-    // Initial Render
-    renderWebsiteList();
-    renderDeviceList(); // Call this to populate the list on load
 });
