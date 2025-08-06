@@ -3,18 +3,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionButton = document.getElementById('action-button');
     const instructions = document.getElementById('instructions');
     const message = document.getElementById('message');
+    const defaultPassword = '12345678';
 
-    chrome.storage.local.get(['adminPassword'], (result) => {
-        if (result.adminPassword) {
-            // Admin password is set, so we're in login mode
-            instructions.textContent = 'Enter your admin password to login.';
-            actionButton.textContent = 'Login';
-        } else {
-            // No admin password, so we're in setup mode
-            instructions.textContent = 'Create a password to manage Biscit.';
-            actionButton.textContent = 'Set Password';
-        }
-    });
+    instructions.textContent = 'Enter your admin password to login.';
+    actionButton.textContent = 'Login';
 
     actionButton.addEventListener('click', () => {
         const password = passwordInput.value;
@@ -24,20 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         chrome.storage.local.get(['adminPassword'], (result) => {
-            if (result.adminPassword) {
-                // Login mode
-                if (password === result.adminPassword) {
-                    // Correct password, redirect to admin panel
-                    window.location.href = 'admin.html';
-                } else {
-                    message.textContent = 'Incorrect password.';
-                }
+            const storedPassword = result.adminPassword;
+            let correctPassword = storedPassword || defaultPassword;
+
+            if (password === correctPassword) {
+                // If the user logged in with the default password,
+                // and they haven't set a custom one yet, we don't set it here.
+                // They must change it from the admin panel.
+                window.location.href = 'admin.html';
             } else {
-                // Setup mode
-                chrome.storage.local.set({ adminPassword: password }, () => {
-                    // Redirect to admin panel after setting password
-                    window.location.href = 'admin.html';
-                });
+                message.textContent = 'Incorrect password.';
             }
         });
     });

@@ -15,6 +15,20 @@
         <ul id="website-list">
             <!-- Websites will be added here dynamically -->
         </ul>
+        <hr>
+        <h2>Change Admin Password</h2>
+        <input type="password" id="new-password" placeholder="Enter new password">
+        <button id="change-password-button">Save Password</button>
+        <p id="password-message"></p>
+        <hr>
+        <h2>Remote Sync Settings</h2>
+        <label>
+            <input type="checkbox" id="remote-sync-enabled">
+            Enable Remote Sync
+        </label>
+        <input type="url" id="remote-sync-url" placeholder="https://your-server.com/path">
+        <button id="save-remote-sync-button">Save Sync Settings</button>
+        <p id="remote-sync-message"></p>
     </div>
     <script src="../js/admin.js"></script>
 </body>
