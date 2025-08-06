@@ -5,7 +5,8 @@
   "description": "Share Cookies Across Devices with Admin Controls",
   "permissions": [
     "storage",
-    "cookies"
+    "cookies",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -14,7 +15,7 @@
     "service_worker": "js/background.js"
   },
   "action": {
-    "default_popup": "html/index.html"
+    "default_popup": "html/popup.html"
   },
-  "options_page": "html/index.html"
+  "options_page": "html/admin.html"
 }

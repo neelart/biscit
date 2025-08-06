@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Biscit</title>
+    <link rel="stylesheet" type="text/css" href="../css/main.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Biscit</h1>
+        <button id="login-as-admin-button">Admin Login</button>
+    </div>
+
+    <ul id="website-list">
+        <!-- User-facing website list will be rendered here -->
+    </ul>
+
+    <!-- Modal for cookie editor -->
+    <div id="edit-cookie-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Edit Cookies for <span id="modal-site-name"></span></h2>
+            <textarea id="cookie-editor" placeholder="Paste cookies in JSON or Netscape format..."></textarea>
+            <button id="save-cookies-button">Save Cookies</button>
+        </div>
+    </div>
+
+    <script src="../js/popup.js"></script>
+</body>
+</html>
