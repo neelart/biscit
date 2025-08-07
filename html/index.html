@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Biscit - Admin Panel</title>
+    <link rel="stylesheet" type="text/css" href="../css/main.css">
+</head>
+<body>
+    <div class="tab-bar">
+        <button class="tab-link active" data-tab="home" title="Actions for the current page">Home</button>
+        <button class="tab-link" data-tab="websites" title="See the full list of managed websites">Websites</button>
+        <button class="tab-link" data-tab="settings" title="Configure extension settings and admin access">Settings</button>
+        <button class="tab-link" data-tab="devices" title="See a list of connected devices (future feature)">Online Devices</button>
+    </div>
+
+    <div id="home" class="tab-content active">
+        <h2>Current Page</h2>
+        <input type="text" id="current-url" readonly>
+        <div class="action-buttons">
+            <button id="home-add-cookies" title="Add/Edit cookies for this page">Add/Edit Cookies</button>
+            <button id="home-delete-cookies" title="Delete all cookies for this page">Delete Cookies</button>
+            <button id="home-import-cookies" title="Import cookies from file/text">Import</button>
+            <button id="home-export-cookies" title="Export cookies as a JSON file">Export</button>
+        </div>
+        <div class="sync-control">
+            <label class="switch" title="Auto Cookies: Enable to automatically sync and apply admin's cookies for this site.">
+                <input type="checkbox" id="home-auto-sync-toggle">
+                <span class="slider"></span>
+            </label>
+            <label for="home-auto-sync-toggle">Auto Sync Cookies</label>
+        </div>
+    </div>
+
+    <div id="websites" class="tab-content">
+        <!-- Websites tab content will be added in a later phase -->
+    </div>
+
+    <div id="settings" class="tab-content">
+        <!-- Settings tab content will be added in a later phase -->
+    </div>
+
+    <div id="devices" class="tab-content">
+        <!-- Online devices tab content will be added in a later phase -->
+    </div>
+
+    <script src="../js/app.js"></script>
+</body>
+</html>
